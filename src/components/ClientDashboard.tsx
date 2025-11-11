@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import Joyride from 'react-joyride';
 import { Client, Item, Order } from '../types';
 import { supabase } from '../lib/supabase';
-import { Plus, Copy, ShoppingCart, Calendar, Package, LogOut, User as UserIcon, Building2, Phone, Mail, Edit2, List, BookOpen, Trash2, Download, Grid3x3, LayoutList } from 'lucide-react';
+import { Plus, Copy, ShoppingCart, Calendar, Package, LogOut, User as UserIcon, Building2, Phone, Mail, Edit2, List, BookOpen, Trash2, Download, Grid3x3, LayoutList, HelpCircle } from 'lucide-react';
 import ClientOrderForm, { ClientOrderFormData } from './ClientOrderForm';
 import { calculateDiscount } from '../utils/discountCalculator';
 import { generateOrderPDF } from '../utils/pdfGenerator';
+import { useTour } from '../context/TourContext';
+import { LanguageSelector } from './LanguageSelector';
+import { clientTourSteps } from '../constants/tourSteps';
 
 interface ClientDashboardProps {
   clientData: Client;
@@ -26,10 +30,26 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
   const [activeTab, setActiveTab] = useState<ClientTab>('orders');
   const [notification, setNotification] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const {
+    language,
+    setLanguage,
+    isLanguageSelected,
+    setIsLanguageSelected,
+    showTour,
+    setShowTour
+  } = useTour();
 
   useEffect(() => {
     loadData();
   }, [clientData.id]);
+
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem('clientTourLanguage');
+    if (savedLanguage) {
+      setLanguage(savedLanguage as 'en' | 'cs');
+      setIsLanguageSelected(true);
+    }
+  }, [setLanguage, setIsLanguageSelected]);
 
   const loadData = async () => {
     try {
@@ -552,6 +572,13 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
     }
   };
 
+  const handleLanguageSelect = (lang: 'en' | 'cs') => {
+    setLanguage(lang);
+    localStorage.setItem('clientTourLanguage', lang);
+    setIsLanguageSelected(true);
+    setShowTour(true);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -565,6 +592,45 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {!isLanguageSelected && (
+        <LanguageSelector onSelectLanguage={handleLanguageSelect} />
+      )}
+      <Joyride
+        steps={clientTourSteps[language]}
+        run={showTour}
+        continuous
+        showProgress
+        showSkipButton
+        styles={{
+          options: {
+            primaryColor: '#ea580c',
+            textColor: '#1f2937',
+            backgroundColor: '#ffffff',
+            arrowColor: '#ffffff',
+            overlayColor: 'rgba(0, 0, 0, 0.5)',
+          },
+          tooltip: {
+            borderRadius: 8,
+            padding: '16px',
+          },
+          buttonNext: {
+            backgroundColor: '#ea580c',
+            color: '#ffffff',
+            borderRadius: 6,
+            fontSize: 14,
+            padding: '8px 16px',
+          },
+          buttonSkip: {
+            color: '#6b7280',
+            fontSize: 13,
+          },
+        }}
+        callback={(data) => {
+          if (data.action === 'close' || data.action === 'skip' || data.status === 'finished') {
+            setShowTour(false);
+          }
+        }}
+      />
       {notification && (
         <div className="fixed top-4 right-4 z-50 animate-fade-in">
           <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
@@ -578,13 +644,23 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <h1 className="text-xl font-semibold text-gray-900">Sesamo - Client Portal</h1>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center space-x-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Sign Out</span>
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                data-tour="client-help-button"
+                onClick={() => setShowTour(true)}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                title="Start tour"
+              >
+                <HelpCircle size={16} />
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center space-x-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -628,6 +704,7 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
           <div className="border-b border-gray-200">
             <nav className="flex gap-8">
               <button
+                data-tour="client-tab-orders"
                 onClick={() => setActiveTab('orders')}
                 className={`flex items-center gap-2 pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'orders'
@@ -639,6 +716,7 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
                 Orders
               </button>
               <button
+                data-tour="client-tab-catalog"
                 onClick={() => setActiveTab('catalog')}
                 className={`flex items-center gap-2 pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'catalog'
@@ -659,6 +737,7 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button
+                    data-tour="client-create-order"
                     onClick={handleCreateOrder}
                     className="flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg transition-colors font-medium"
                   >
@@ -701,7 +780,7 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
             </div>
 
         <div className="space-y-8">
-          <div>
+          <div data-tour="client-pending-orders">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Edit2 size={20} className="text-yellow-600" />
               Pending Orders
@@ -725,7 +804,7 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
             )}
           </div>
 
-          <div>
+          <div data-tour="client-confirmed-orders">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Package size={20} className="text-blue-600" />
               Confirmed Orders of the Month
@@ -749,7 +828,7 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
             )}
           </div>
 
-          <div>
+          <div data-tour="client-paid-orders">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <List size={20} className="text-green-600" />
               Paid Orders
