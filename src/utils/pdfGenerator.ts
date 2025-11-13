@@ -144,5 +144,5 @@ export const generateOrderPDF = async (
   doc.text('Sesamo Obchodní <sesamosales@gmail.com>', 120, pageHeight - 20);
   
   // Save the PDF
-  doc.save(`Dodaci_list-${order.id.slice(-8)}-${client.name.replace(/\s+/g, '_')}.pdf`);
+  doc.save(`Dodaci_list-${new Date(order.deliveryDate).toLocaleDateString()}-${order.id.slice(-8)}-${client.name.replace(/\s+/g, '_')}.pdf`);
 };
