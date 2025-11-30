@@ -292,36 +292,32 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
     const discountInfo = calculateDiscount(subtotal);
 
     return (
-      <div key={order.id} className="flex items-center justify-between gap-4 px-4 py-3 bg-white border-b hover:bg-gray-50 transition-colors">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-sm font-semibold text-gray-900 whitespace-nowrap">
-              #{order.id.slice(-8)}
+      <div key={order.id} className="flex items-center gap-4 px-4 py-3 bg-white border-b hover:bg-gray-50 transition-colors">
+        <span className="font-mono text-sm font-semibold text-gray-900 w-20 flex-shrink-0">
+          #{order.id.slice(-8)}
+        </span>
+        <span className="text-sm text-gray-600 w-40 flex-shrink-0">
+          {new Date(order.deliveryDate).toLocaleDateString()}
+        </span>
+        <span className="text-sm text-gray-600 w-24 flex-shrink-0 text-right">
+          {subtotal.toFixed(2)} Kč
+        </span>
+        {discountInfo.discount > 0 && (
+          <>
+            <span className="text-sm text-green-600 w-24 flex-shrink-0 text-right">
+              -{discountInfo.discount.toFixed(2)} Kč
             </span>
-            <span className="text-sm text-gray-600 whitespace-nowrap">
-              {new Date(order.deliveryDate).toLocaleDateString()}
+            <span className="text-sm font-semibold text-orange-600 w-28 flex-shrink-0 text-right">
+              {discountInfo.finalTotal.toFixed(2)} Kč
             </span>
-            <span className="text-sm text-gray-600 whitespace-nowrap">
-              {subtotal.toFixed(2)} Kč
-            </span>
-            {discountInfo.discount > 0 && (
-              <>
-                <span className="text-sm text-green-600 whitespace-nowrap">
-                  -{discountInfo.discount.toFixed(2)} Kč
-                </span>
-                <span className="text-sm font-semibold text-orange-600 whitespace-nowrap">
-                  {discountInfo.finalTotal.toFixed(2)} Kč
-                </span>
-              </>
-            )}
-            {discountInfo.discount === 0 && (
-              <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-                {order.total.toFixed(2)} Kč
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2 flex-shrink-0">
+          </>
+        )}
+        {discountInfo.discount === 0 && (
+          <span className="text-sm font-semibold text-gray-900 w-28 flex-shrink-0 text-right">
+            {order.total.toFixed(2)} Kč
+          </span>
+        )}
+        <div className="flex gap-2 flex-shrink-0 ml-auto">
           {canEdit && (
             <>
               <button
@@ -799,6 +795,21 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="flex items-center gap-4 px-4 py-3 bg-gray-100 border-b font-semibold text-sm text-gray-700">
+                  <span className="w-20 flex-shrink-0">ID</span>
+                  <span className="w-40 flex-shrink-0">Delivery</span>
+                  <span className="w-24 flex-shrink-0 text-right">Subtotal</span>
+                  {pendingOrders.some(o => calculateDiscount(o.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)).discount > 0) && (
+                    <>
+                      <span className="w-24 flex-shrink-0 text-right">Discount</span>
+                      <span className="w-28 flex-shrink-0 text-right">Total</span>
+                    </>
+                  )}
+                  {!pendingOrders.some(o => calculateDiscount(o.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)).discount > 0) && (
+                    <span className="w-28 flex-shrink-0 text-right">Total</span>
+                  )}
+                  <div className="flex-shrink-0 ml-auto w-16"></div>
+                </div>
                 {pendingOrders.map((order) => renderCompactRow(order, true))}
               </div>
             )}
@@ -823,6 +834,21 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="flex items-center gap-4 px-4 py-3 bg-gray-100 border-b font-semibold text-sm text-gray-700">
+                  <span className="w-20 flex-shrink-0">ID</span>
+                  <span className="w-40 flex-shrink-0">Delivery</span>
+                  <span className="w-24 flex-shrink-0 text-right">Subtotal</span>
+                  {confirmedOrders.some(o => calculateDiscount(o.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)).discount > 0) && (
+                    <>
+                      <span className="w-24 flex-shrink-0 text-right">Discount</span>
+                      <span className="w-28 flex-shrink-0 text-right">Total</span>
+                    </>
+                  )}
+                  {!confirmedOrders.some(o => calculateDiscount(o.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)).discount > 0) && (
+                    <span className="w-28 flex-shrink-0 text-right">Total</span>
+                  )}
+                  <div className="flex-shrink-0 ml-auto w-16"></div>
+                </div>
                 {confirmedOrders.map((order) => renderCompactRow(order, false))}
               </div>
             )}
@@ -847,6 +873,21 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="flex items-center gap-4 px-4 py-3 bg-gray-100 border-b font-semibold text-sm text-gray-700">
+                  <span className="w-20 flex-shrink-0">ID</span>
+                  <span className="w-40 flex-shrink-0">Delivery</span>
+                  <span className="w-24 flex-shrink-0 text-right">Subtotal</span>
+                  {deliveredOrders.some(o => calculateDiscount(o.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)).discount > 0) && (
+                    <>
+                      <span className="w-24 flex-shrink-0 text-right">Discount</span>
+                      <span className="w-28 flex-shrink-0 text-right">Total</span>
+                    </>
+                  )}
+                  {!deliveredOrders.some(o => calculateDiscount(o.items.reduce((sum, item) => sum + (item.price * item.quantity), 0)).discount > 0) && (
+                    <span className="w-28 flex-shrink-0 text-right">Total</span>
+                  )}
+                  <div className="flex-shrink-0 ml-auto w-16"></div>
+                </div>
                 {deliveredOrders.map((order) => renderCompactRow(order, false))}
               </div>
             )}
