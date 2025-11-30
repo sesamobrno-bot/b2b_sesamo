@@ -31,7 +31,7 @@ export function useSupabaseData() {
       const { data: itemsData, error: itemsError } = await supabase
         .from('items')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('name', { ascending: true });    
       
       if (itemsError) throw itemsError;
 
