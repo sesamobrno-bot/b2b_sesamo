@@ -26,7 +26,7 @@ export function calculateDiscount(subtotal: number): DiscountInfo {
   } else {
     discountPercentage = 20;
     discount = subtotal * 0.2;
-    message = `20% discount applied`;
+    message = `10% discount applied`;
   }
 
   const finalTotal = subtotal - discount;
