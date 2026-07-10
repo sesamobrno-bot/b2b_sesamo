@@ -13,7 +13,7 @@ export function calculateDiscount(subtotal: number): DiscountInfo {
 
   if (subtotal < 1000) {
     const remaining = 1000 - subtotal;
-    message = `Buy for ${remaining.toFixed(0)} Kč more and get free delivery`;
+    message = `Ještě ${remaining.toFixed(0)} Kč a máte dopravu zdarma.`;
   } else if (subtotal < 1500) {
    
     const remaining = 1500 - subtotal;
