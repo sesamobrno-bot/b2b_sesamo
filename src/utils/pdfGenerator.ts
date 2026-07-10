@@ -8,14 +8,33 @@ interface OrderItemWithDetails {
   name: string;
 }
 
-// Cache for loaded fonts
+// Cache for loaded fonts (base64 TTF data)
 const fontCache: { regular?: string; bold?: string } = {};
+
+const FONT_REGULAR_URL =
+  'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf';
+const FONT_BOLD_URL =
+  'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf';
+const FONT_FAMILY = 'DejaVuSans';
+
+// sfnt magic: TTF (0x00010000), OTF ('OTTO'), and Apple ('true').
+function isValidTtf(bytes: Uint8Array): boolean {
+  if (bytes.length < 4) return false;
+  const sig = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+  return sig === '\x00\x01\x00\x00' || sig === 'OTTO' || sig === 'true';
+}
 
 async function loadFont(url: string): Promise<string> {
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Font fetch failed: ${response.status} for ${url}`);
+  }
   const buffer = await response.arrayBuffer();
-  let binary = '';
   const bytes = new Uint8Array(buffer);
+  if (!isValidTtf(bytes)) {
+    throw new Error(`Fetched data is not a valid TTF/OTF: ${url}`);
+  }
+  let binary = '';
   const len = bytes.byteLength;
   for (let i = 0; i < len; i++) {
     binary += String.fromCharCode(bytes[i]);
@@ -25,30 +44,30 @@ async function loadFont(url: string): Promise<string> {
 
 async function ensureFonts(doc: jsPDF): Promise<void> {
   if (fontCache.regular && fontCache.bold) {
-    doc.addFileToVFS('Roboto-Regular.ttf', fontCache.regular);
-    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
-    doc.addFileToVFS('Roboto-Bold.ttf', fontCache.bold);
-    doc.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
+    doc.addFileToVFS(`${FONT_FAMILY}-Regular.ttf`, fontCache.regular);
+    doc.addFont(`${FONT_FAMILY}-Regular.ttf`, FONT_FAMILY, 'normal');
+    doc.addFileToVFS(`${FONT_FAMILY}-Bold.ttf`, fontCache.bold);
+    doc.addFont(`${FONT_FAMILY}-Bold.ttf`, FONT_FAMILY, 'bold');
     return;
   }
 
   try {
-    // Load Roboto fonts from CDN (supports Czech characters)
+    // DejaVu Sans fully covers Czech/Latin-Extended glyphs and ships real .ttf files.
     const [regularBase64, boldBase64] = await Promise.all([
-      loadFont('https://cdn.jsdelivr.net/gh/aspect-apps/sources@master/Roboto-Regular.ttf'),
-      loadFont('https://cdn.jsdelivr.net/gh/aspect-apps/sources@master/Roboto-Bold.ttf'),
+      loadFont(FONT_REGULAR_URL),
+      loadFont(FONT_BOLD_URL),
     ]);
 
     fontCache.regular = regularBase64;
     fontCache.bold = boldBase64;
 
-    doc.addFileToVFS('Roboto-Regular.ttf', regularBase64);
-    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
-    doc.addFileToVFS('Roboto-Bold.ttf', boldBase64);
-    doc.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
+    doc.addFileToVFS(`${FONT_FAMILY}-Regular.ttf`, regularBase64);
+    doc.addFont(`${FONT_FAMILY}-Regular.ttf`, FONT_FAMILY, 'normal');
+    doc.addFileToVFS(`${FONT_FAMILY}-Bold.ttf`, boldBase64);
+    doc.addFont(`${FONT_FAMILY}-Bold.ttf`, FONT_FAMILY, 'bold');
   } catch (error) {
-    console.warn('Failed to load Roboto font, falling back to default:', error);
-    // Fall back to default font - Czech chars may not display correctly
+    console.warn('Failed to load DejaVu font, falling back to helvetica:', error);
+    // Helvetica does not cover Czech diacritics, but avoids the widths/Unicode crash.
   }
 }
 
@@ -60,9 +79,9 @@ export const generateOrderPDF = async (
   const doc = new jsPDF();
   await ensureFonts(doc);
 
-  // Check if Roboto loaded successfully
-  const hasRoboto = doc.getFontList().Roboto !== undefined;
-  const fontName = hasRoboto ? 'Roboto' : 'helvetica';
+  // Check if the custom font loaded successfully; fall back to helvetica.
+  const hasCustomFont = doc.getFontList()[FONT_FAMILY] !== undefined;
+  const fontName = hasCustomFont ? FONT_FAMILY : 'helvetica';
 
   // Company Header
   doc.setFontSize(20);
