@@ -22,7 +22,7 @@ export function calculateDiscount(subtotal: number): DiscountInfo {
     discountPercentage = 5;
     discount = subtotal * 0.05;
     const remaining = 1900 - subtotal;
-    message = `Buy for ${remaining.toFixed(0)} Kč more and get 10% discount`;
+    message = `Ještě ${remaining.toFixed(0)} Kč a získáte slevu 10 %.`;
   } else {
     discountPercentage = 10;
     discount = subtotal * 0.1;
