@@ -17,7 +17,7 @@ export function calculateDiscount(subtotal: number): DiscountInfo {
   } else if (subtotal < 1500) {
    
     const remaining = 1500 - subtotal;
-    message = `Buy for ${remaining.toFixed(0)} Kč more and get 5% discount`;
+    message = `Ještě ${remaining.toFixed(0)} Kč a získáte slevu 5 %.`;
   } else if (subtotal < 1900) {
     discountPercentage = 5;
     discount = subtotal * 0.05;
