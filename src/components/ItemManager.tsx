@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Item } from '../types';
-import { Plus, Edit2, Trash2, Package, DollarSign, Weight, Image, FileText, Tag } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, Package, DollarSign, Weight, Image, FileText, Tag } from 'lucide-react';
 
 interface ItemManagerProps {
   items: Item[];
@@ -20,7 +20,7 @@ interface ItemFormData {
 }
 
 const categories = [
-  'Bread & Pastries','Pizza','Pasta','Desserts','Food & Beverages', 'Other'
+  'Bread', 'Pastries', 'Focaccia & Pizza', 'Desserts', 'Cakes', 'Other'
 ];
 
 export default function ItemManager({ items, onAddItem, onUpdateItem, onDeleteItem }: ItemManagerProps) {
@@ -169,7 +169,7 @@ export default function ItemManager({ items, onAddItem, onUpdateItem, onDeleteIt
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-gray-600">
                     <DollarSign size={14} />
-                    <span>{item.price.toFixed(2)} Kč</span>
+                    <span>{(item.price / 1.12).toFixed(2)} Kč <span className="text-xs text-gray-400">bez DPH</span></span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
                     <Weight size={14} />

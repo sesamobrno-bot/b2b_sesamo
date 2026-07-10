@@ -11,7 +11,11 @@ export function calculateDiscount(subtotal: number): DiscountInfo {
   let discountPercentage = 0;
   let message = '';
 
-  if (subtotal < 600) {
+  if (subtotal < 1000) {
+    const remaining = 1000 - subtotal;
+    message = `Buy for ${remaining.toFixed(0)} Kč more and get free delivery`;
+  } else if (subtotal < 1200) {
+   
     const remaining = 600 - subtotal;
     message = `Buy for ${remaining.toFixed(0)} Kč more and get 10% discount`;
   } else if (subtotal < 1200) {
