@@ -26,7 +26,7 @@ export function calculateDiscount(subtotal: number): DiscountInfo {
   } else {
     discountPercentage = 10;
     discount = subtotal * 0.1;
-    message = `10% discount applied`;
+    message = `10% sleva byla aktivována.`;
   }
 
   const finalTotal = subtotal - discount;
