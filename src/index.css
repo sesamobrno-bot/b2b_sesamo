@@ -16,3 +16,42 @@
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
+
+/* Weekly view: costs hidden by default, shown when .weekly-costs-visible on container */
+.weekly-cost {
+  display: none;
+}
+.weekly-costs-visible .weekly-cost {
+  display: inline-flex;
+}
+
+/* Print styles for weekly view */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .weekly-view-container,
+  .weekly-view-container * {
+    visibility: visible;
+  }
+  .weekly-view-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  .weekly-week-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .weekly-day-cell {
+    min-height: auto !important;
+  }
+  @page {
+    margin: 1cm;
+    size: landscape;
+  }
+}

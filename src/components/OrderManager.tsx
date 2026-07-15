@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { Order, OrderItem, Client, Item } from '../types';
-import { Plus, Edit2, Trash2, ShoppingCart, Calendar, User, Package, Minus, Download, Copy, Grid3x3, LayoutList } from 'lucide-react';
+import { Plus, Edit2, Trash2, ShoppingCart, Calendar, User, Package, Minus, Download, Copy, Grid3x3, LayoutList, CalendarDays } from 'lucide-react';
 import { generateOrderPDF } from '../utils/pdfGenerator';
 import { calculateDiscount } from '../utils/discountCalculator';
+import WeeklyView from './WeeklyView';
 
-type ViewMode = 'cards' | 'compact';
+type ViewMode = 'cards' | 'compact' | 'weekly';
 
 interface OrderManagerProps {
   orders: Order[];
@@ -170,6 +171,36 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
     openModal(undefined, orderFormData);
   };
 
+  const handleDuplicateWeek = (sourceWeekStart: string, targetWeekStart: string) => {
+    const sourceDate = new Date(sourceWeekStart + 'T00:00:00');
+    const targetDate = new Date(targetWeekStart + 'T00:00:00');
+    const weekOrders = orders.filter(o => {
+      const d = new Date(o.deliveryDate);
+      const ws = new Date(d);
+      const day = ws.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      ws.setDate(ws.getDate() + diff);
+      ws.setHours(0, 0, 0, 0);
+      return ws.toISOString().split('T')[0] === sourceWeekStart && o.status !== 'merge';
+    });
+
+    for (const order of weekOrders) {
+      const sourceDelivery = new Date(order.deliveryDate);
+      const dayOffset = Math.round((sourceDelivery.getTime() - sourceDate.getTime()) / (1000 * 60 * 60 * 24));
+      const newDeliveryDate = new Date(targetDate);
+      newDeliveryDate.setDate(newDeliveryDate.getDate() + dayOffset);
+
+      onAddOrder({
+        clientId: order.clientId,
+        items: order.items.map(oi => ({ itemId: oi.itemId, quantity: oi.quantity, price: oi.price })),
+        deliveryDate: newDeliveryDate.toISOString().split('T')[0],
+        status: 'pending',
+        notes: order.notes,
+        total: order.total,
+      });
+    }
+  };
+
   const renderCompactRow = (order: Order) => {
     const client = clients.find(c => c.id === order.clientId);
     const subtotal = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -275,6 +306,17 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
           >
             <LayoutList size={18} />
           </button>
+          <button
+            onClick={() => setViewMode('weekly')}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+              viewMode === 'weekly'
+                ? 'bg-orange-100 text-orange-600'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+            title="Weekly view"
+          >
+            <CalendarDays size={18} />
+          </button>
         </div>
       </div>
 
@@ -325,8 +367,21 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
         </div>
       )}
 
+      {/* Weekly view */}
+      {viewMode === 'weekly' && (
+        <WeeklyView
+          orders={filteredOrders}
+          clients={clients}
+          items={items}
+          onEditOrder={(order) => openModal(order)}
+          onCopyOrder={(order) => copyOrder(order)}
+          onDeleteOrder={(order) => onDeleteOrder(order.id)}
+          onDuplicateWeek={handleDuplicateWeek}
+        />
+      )}
+
       {/* Orders Grid */}
-      {viewMode === 'cards' ? (
+      {viewMode === 'cards' && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredOrders.map((order) => {
           const client = clients.find(c => c.id === order.clientId);
@@ -442,7 +497,9 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
           );
         })}
       </div>
-      ) : (
+      )}
+
+      {viewMode === 'compact' && (
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         {filteredOrders.map((order) => renderCompactRow(order))}
       </div>
