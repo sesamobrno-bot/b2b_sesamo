@@ -168,7 +168,6 @@ export default function ItemManager({ items, onAddItem, onUpdateItem, onDeleteIt
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-gray-600">
-                    <DollarSign size={14} />
                     <span>{(item.price / 1.12).toFixed(2)} Kč <span className="text-xs text-gray-400">bez DPH</span></span>
                   </div>
                   <div className="flex items-center gap-2 text-gray-600">
