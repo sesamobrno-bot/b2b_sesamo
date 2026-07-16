@@ -17,22 +17,24 @@ const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DAY_NAMES_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 function getWeekStart(date: Date): Date {
-  const d = new Date(date);
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
   return d;
 }
 
 function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   d.setDate(d.getDate() + days);
   return d;
 }
 
 function formatDateKey(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function formatWeekRange(weekStart: Date): string {
@@ -63,7 +65,8 @@ export default function WeeklyView({
     const weekMap = new Map<string, Map<string, Order[]>>();
 
     for (const order of filteredOrders) {
-      const orderDate = new Date(order.deliveryDate);
+      const [y, m, d] = order.deliveryDate.split('T')[0].split('-').map(Number);
+      const orderDate = new Date(y, m - 1, d);
       const weekStart = getWeekStart(orderDate);
       const weekKey = formatDateKey(weekStart);
 
@@ -79,9 +82,10 @@ export default function WeeklyView({
     }
 
     return Array.from(weekMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => b.localeCompare(a))
       .map(([weekKey, dayMap]) => {
-        const weekStart = new Date(weekKey + 'T00:00:00');
+        const [wy, wm, wd] = weekKey.split('-').map(Number);
+        const weekStart = new Date(wy, wm - 1, wd);
         const days = Array.from({ length: 7 }, (_, i) => {
           const dayDate = addDays(weekStart, i);
           const dayKey = formatDateKey(dayDate);
@@ -96,7 +100,8 @@ export default function WeeklyView({
   }, [filteredOrders]);
 
   const handleDuplicate = (weekKey: string, targetOffset: number) => {
-    const sourceDate = new Date(weekKey + 'T00:00:00');
+    const [sy, sm, sd] = weekKey.split('-').map(Number);
+    const sourceDate = new Date(sy, sm - 1, sd);
     const targetDate = addDays(sourceDate, targetOffset * 7);
     onDuplicateWeek(weekKey, formatDateKey(targetDate));
     setDuplicateModal(null);
@@ -259,7 +264,7 @@ export default function WeeklyView({
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Duplicate week's orders?</h3>
             <p className="text-sm text-gray-600 mb-4">
               This will copy all orders from the week of{' '}
-              {formatWeekRange(new Date(duplicateModal.weekStart + 'T00:00:00'))}{' '}
+              {formatWeekRange((() => { const [y, m, d] = duplicateModal.weekStart.split('-').map(Number); return new Date(y, m - 1, d); })())}{' '}
               to the selected target week, preserving client and item assignments day by day.
             </p>
             <div className="flex flex-col gap-2">
