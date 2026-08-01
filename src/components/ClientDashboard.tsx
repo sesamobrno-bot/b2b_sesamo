@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import Joyride from 'react-joyride';
 import { Client, Item, Order } from '../types';
 import { supabase } from '../lib/supabase';
-import { Plus, Copy, ShoppingCart, Calendar, Package, LogOut, User as UserIcon, Building2, Phone, Mail, Edit2, List, BookOpen, Trash2, Download, Grid3x3, LayoutList, HelpCircle } from 'lucide-react';
+import { Plus, Copy, ShoppingCart, Calendar, Package, LogOut, User as UserIcon, Building2, Phone, Mail, Edit2, List, BookOpen, Trash2, Download, Grid3x3, LayoutList, HelpCircle, CalendarDays } from 'lucide-react';
 import ClientOrderForm, { ClientOrderFormData } from './ClientOrderForm';
 import { calculateDiscount } from '../utils/discountCalculator';
 import { generateOrderPDF } from '../utils/pdfGenerator';
+import WeeklyView from './WeeklyView';
 import { useTour } from '../context/TourContext';
 import { LanguageSelector } from './LanguageSelector';
 import { clientTourSteps } from '../constants/tourSteps';
@@ -16,7 +17,7 @@ interface ClientDashboardProps {
 
 type OrderSection = 'pending' | 'confirmed' | 'delivered';
 type ClientTab = 'orders' | 'catalog';
-type ViewMode = 'cards' | 'compact';
+type ViewMode = 'cards' | 'compact' | 'weekly';
 
 export default function ClientDashboard({ clientData }: ClientDashboardProps) {
   const [items, setItems] = useState<Item[]>([]);
@@ -193,6 +194,59 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
   const showNotification = (message: string) => {
     setNotification(message);
     setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleDuplicateWeek = async (sourceWeekStart: string, targetWeekStart: string) => {
+    const sourceDate = new Date(sourceWeekStart + 'T00:00:00');
+    const targetDate = new Date(targetWeekStart + 'T00:00:00');
+    const allOrders = [...pendingOrders, ...confirmedOrders, ...deliveredOrders];
+    const weekOrders = allOrders.filter(o => {
+      const d = new Date(o.deliveryDate);
+      const ws = new Date(d);
+      const day = ws.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      ws.setDate(ws.getDate() + diff);
+      ws.setHours(0, 0, 0, 0);
+      return ws.toISOString().split('T')[0] === sourceWeekStart && o.status !== 'merge';
+    });
+
+    for (const order of weekOrders) {
+      const sourceDelivery = new Date(order.deliveryDate);
+      const dayOffset = Math.round((sourceDelivery.getTime() - sourceDate.getTime()) / (1000 * 60 * 60 * 24));
+      const newDeliveryDate = new Date(targetDate);
+      newDeliveryDate.setDate(newDeliveryDate.getDate() + dayOffset);
+
+      const orderId = crypto.randomUUID();
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert([{
+          id: orderId,
+          client_id: clientData.id,
+          delivery_date: newDeliveryDate.toISOString().split('T')[0],
+          status: 'pending',
+          notes: order.notes || null,
+          total: order.total
+        }]);
+
+      if (orderError) throw orderError;
+
+      if (order.items.length > 0) {
+        const orderItemsToInsert = order.items.map(oi => ({
+          order_id: orderId,
+          item_id: oi.itemId,
+          quantity: oi.quantity,
+          price: oi.price
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('order_items')
+          .insert(orderItemsToInsert);
+
+        if (itemsError) throw itemsError;
+      }
+    }
+
+    await loadData();
   };
 
   const handleAddToCart = async (item: Item) => {
@@ -771,10 +825,41 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
                   >
                     <LayoutList size={18} />
                   </button>
+                  <button
+                    onClick={() => setViewMode('weekly')}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                      viewMode === 'weekly'
+                        ? 'bg-orange-100 text-orange-600'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                    title="Weekly view"
+                  >
+                    <CalendarDays size={18} />
+                  </button>
                 </div>
               </div>
             </div>
 
+        {viewMode === 'weekly' ? (
+          <WeeklyView
+            orders={[...pendingOrders, ...confirmedOrders, ...deliveredOrders]}
+            clients={[{ ...clientData, id: clientData.id }]}
+            items={items}
+            onEditOrder={(order) => handleEditOrder(order)}
+            onCopyOrder={(order) => {
+              const formData: ClientOrderFormData = {
+                deliveryDate: order.deliveryDate,
+                notes: order.notes,
+                items: order.items.map(item => ({ itemId: item.itemId, quantity: item.quantity }))
+              };
+              setInitialFormData(formData);
+              setEditingOrderId(null);
+              setIsModalOpen(true);
+            }}
+            onDeleteOrder={(order) => handleDeleteOrder(order.id)}
+            onDuplicateWeek={handleDuplicateWeek}
+          />
+        ) : (
         <div className="space-y-8">
           <div data-tour="client-pending-orders">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -893,6 +978,7 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
             )}
           </div>
         </div>
+        )}
           </>
         )}
 
