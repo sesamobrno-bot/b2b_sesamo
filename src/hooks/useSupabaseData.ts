@@ -280,18 +280,21 @@ export function useSupabaseData() {
 
       if (orderError) throw orderError;
 
-      // Insert order items
+      // Insert order items (merge duplicates to avoid composite PK violation)
       if (orderData.items.length > 0) {
-        const orderItemsToInsert = orderData.items.map(item => ({
-          order_id: orderId,
-          item_id: item.itemId,
-          quantity: item.quantity,
-          price: item.price
-        }));
+        const mergedItems = orderData.items.reduce((acc, item) => {
+          const existing = acc.find(x => x.item_id === item.itemId);
+          if (existing) {
+            existing.quantity += item.quantity;
+          } else {
+            acc.push({ order_id: orderId, item_id: item.itemId, quantity: item.quantity, price: item.price });
+          }
+          return acc;
+        }, [] as { order_id: string; item_id: string; quantity: number; price: number }[]);
 
         const { error: itemsError } = await supabase
           .from('order_items')
-          .insert(orderItemsToInsert);
+          .insert(mergedItems);
 
         if (itemsError) throw itemsError;
       }

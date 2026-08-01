@@ -210,43 +210,60 @@ export default function ClientDashboard({ clientData }: ClientDashboardProps) {
       return ws.toISOString().split('T')[0] === sourceWeekStart && o.status !== 'merge';
     });
 
+    let successCount = 0;
+    let failCount = 0;
+
     for (const order of weekOrders) {
-      const sourceDelivery = new Date(order.deliveryDate);
-      const dayOffset = Math.round((sourceDelivery.getTime() - sourceDate.getTime()) / (1000 * 60 * 60 * 24));
-      const newDeliveryDate = new Date(targetDate);
-      newDeliveryDate.setDate(newDeliveryDate.getDate() + dayOffset);
+      try {
+        const sourceDelivery = new Date(order.deliveryDate);
+        const dayOffset = Math.round((sourceDelivery.getTime() - sourceDate.getTime()) / (1000 * 60 * 60 * 24));
+        const newDeliveryDate = new Date(targetDate);
+        newDeliveryDate.setDate(newDeliveryDate.getDate() + dayOffset);
 
-      const orderId = crypto.randomUUID();
-      const { error: orderError } = await supabase
-        .from('orders')
-        .insert([{
-          id: orderId,
-          client_id: clientData.id,
-          delivery_date: newDeliveryDate.toISOString().split('T')[0],
-          status: 'pending',
-          notes: order.notes || null,
-          total: order.total
-        }]);
+        const orderId = crypto.randomUUID();
+        const { error: orderError } = await supabase
+          .from('orders')
+          .insert([{
+            id: orderId,
+            client_id: clientData.id,
+            delivery_date: newDeliveryDate.toISOString().split('T')[0],
+            status: 'pending',
+            notes: order.notes || null,
+            total: order.total
+          }]);
 
-      if (orderError) throw orderError;
+        if (orderError) throw orderError;
 
-      if (order.items.length > 0) {
-        const orderItemsToInsert = order.items.map(oi => ({
-          order_id: orderId,
-          item_id: oi.itemId,
-          quantity: oi.quantity,
-          price: oi.price
-        }));
+        if (order.items.length > 0) {
+          const mergedItems = order.items.reduce((acc, oi) => {
+            const existing = acc.find(x => x.item_id === oi.itemId);
+            if (existing) {
+              existing.quantity += oi.quantity;
+            } else {
+              acc.push({ order_id: orderId, item_id: oi.itemId, quantity: oi.quantity, price: oi.price });
+            }
+            return acc;
+          }, [] as { order_id: string; item_id: string; quantity: number; price: number }[]);
 
-        const { error: itemsError } = await supabase
-          .from('order_items')
-          .insert(orderItemsToInsert);
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(mergedItems);
 
-        if (itemsError) throw itemsError;
+          if (itemsError) throw itemsError;
+        }
+
+        successCount++;
+      } catch (err) {
+        console.error('Error duplicating order:', err);
+        failCount++;
       }
     }
 
     await loadData();
+
+    if (failCount > 0) {
+      alert(`Duplicated ${successCount} order(s), but ${failCount} failed. Some items may no longer exist in the catalog.`);
+    }
   };
 
   const handleAddToCart = async (item: Item) => {
