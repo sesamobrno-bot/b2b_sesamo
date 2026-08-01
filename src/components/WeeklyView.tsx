@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CreditCard as Edit2, Trash2, Copy, Printer, DollarSign, Repeat } from 'lucide-react';
+import { CreditCard as Edit2, Trash2, Copy, Printer, DollarSign, Repeat, Loader2 } from 'lucide-react';
 import { Order, Client, Item } from '../types';
 import { calculateDiscount } from '../utils/discountCalculator';
 
@@ -10,7 +10,7 @@ interface WeeklyViewProps {
   onEditOrder: (order: Order) => void;
   onCopyOrder: (order: Order) => void;
   onDeleteOrder: (order: Order) => void;
-  onDuplicateWeek: (sourceWeekStart: string, targetWeekStart: string) => void;
+  onDuplicateWeek: (sourceWeekStart: string, targetWeekStart: string) => Promise<void>;
 }
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -55,6 +55,7 @@ export default function WeeklyView({
 }: WeeklyViewProps) {
   const [showCosts, setShowCosts] = useState(false);
   const [duplicateModal, setDuplicateModal] = useState<{ weekStart: string } | null>(null);
+  const [isDuplicating, setIsDuplicating] = useState(false);
 
   const filteredOrders = useMemo(
     () => orders.filter(o => o.status !== 'merge'),
@@ -99,12 +100,20 @@ export default function WeeklyView({
       });
   }, [filteredOrders]);
 
-  const handleDuplicate = (weekKey: string, targetOffset: number) => {
+  const handleDuplicate = async (weekKey: string, targetOffset: number) => {
     const [sy, sm, sd] = weekKey.split('-').map(Number);
     const sourceDate = new Date(sy, sm - 1, sd);
     const targetDate = addDays(sourceDate, targetOffset * 7);
-    onDuplicateWeek(weekKey, formatDateKey(targetDate));
-    setDuplicateModal(null);
+    setIsDuplicating(true);
+    try {
+      await onDuplicateWeek(weekKey, formatDateKey(targetDate));
+    } catch (error) {
+      console.error('Error duplicating week:', error);
+      alert('Failed to duplicate week. Please try again.');
+    } finally {
+      setIsDuplicating(false);
+      setDuplicateModal(null);
+    }
   };
 
   const renderItemLine = (order: Order, orderItem: { itemId: string; quantity: number; price: number }) => {
@@ -270,19 +279,23 @@ export default function WeeklyView({
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => handleDuplicate(duplicateModal.weekStart, 1)}
-                className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
+                disabled={isDuplicating}
+                className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors text-sm font-medium flex items-center justify-center gap-2"
               >
-                Yes, for next week
+                {isDuplicating && <Loader2 className="animate-spin" size={16} />}
+                {isDuplicating ? 'Duplicating...' : 'Yes, for next week'}
               </button>
               <button
                 onClick={() => handleDuplicate(duplicateModal.weekStart, 0)}
-                className="w-full px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm"
+                disabled={isDuplicating}
+                className="w-full px-4 py-2.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 rounded-lg transition-colors text-sm"
               >
                 Yes, for this week
               </button>
               <button
                 onClick={() => setDuplicateModal(null)}
-                className="w-full px-4 py-2.5 text-gray-500 hover:text-gray-700 transition-colors text-sm"
+                disabled={isDuplicating}
+                className="w-full px-4 py-2.5 text-gray-500 hover:text-gray-700 disabled:opacity-50 transition-colors text-sm"
               >
                 Cancel
               </button>

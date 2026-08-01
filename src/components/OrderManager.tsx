@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { Order, OrderItem, Client, Item } from '../types';
-import { Plus, Edit2, Trash2, ShoppingCart, Calendar, User, Package, Minus, Download, Copy, Grid3x3, LayoutList, CalendarDays } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, ShoppingCart, Calendar, User, Package, Minus, Download, Copy, Grid3x3, LayoutList, CalendarDays } from 'lucide-react';
 import { generateOrderPDF } from '../utils/pdfGenerator';
 import { calculateDiscount } from '../utils/discountCalculator';
 import WeeklyView from './WeeklyView';
@@ -12,7 +12,7 @@ interface OrderManagerProps {
   orders: Order[];
   clients: Client[];
   items: Item[];
-  onAddOrder: (order: Omit<Order, 'id' | 'createdAt'>) => void;
+  onAddOrder: (order: Omit<Order, 'id' | 'createdAt'>) => Promise<void>;
   onUpdateOrder: (id: string, order: Omit<Order, 'id' | 'createdAt'>) => void;
   onDeleteOrder: (id: string) => void;
 }
@@ -40,6 +40,7 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [isDuplicating, setIsDuplicating] = useState(false);
 
   const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm<OrderFormData>();
   const { fields, append, remove } = useFieldArray({
@@ -64,7 +65,7 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
     }, 0);
   };
 
-  const onSubmit = (data: OrderFormData) => {
+  const onSubmit = async (data: OrderFormData) => {
     const orderItems: OrderItem[] = data.items.map(item => {
       const itemData = items.find(i => i.id === item.itemId);
       return {
@@ -90,9 +91,13 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
     if (editingOrder) {
       onUpdateOrder(editingOrder.id, orderData);
     } else {
-      // Note: onAddOrder is now async, but we don't need to await here
-      // as the SMS sending happens in the background
-      onAddOrder(orderData);
+      try {
+        await onAddOrder(orderData);
+      } catch (error) {
+        console.error('Error adding order:', error);
+        alert('Failed to create order. Please try again.');
+        return;
+      }
     }
     closeModal();
   };
@@ -171,7 +176,7 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
     openModal(undefined, orderFormData);
   };
 
-  const handleDuplicateWeek = (sourceWeekStart: string, targetWeekStart: string) => {
+  const handleDuplicateWeek = async (sourceWeekStart: string, targetWeekStart: string) => {
     const sourceDate = new Date(sourceWeekStart + 'T00:00:00');
     const targetDate = new Date(targetWeekStart + 'T00:00:00');
     const weekOrders = orders.filter(o => {
@@ -184,20 +189,28 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
       return ws.toISOString().split('T')[0] === sourceWeekStart && o.status !== 'merge';
     });
 
-    for (const order of weekOrders) {
-      const sourceDelivery = new Date(order.deliveryDate);
-      const dayOffset = Math.round((sourceDelivery.getTime() - sourceDate.getTime()) / (1000 * 60 * 60 * 24));
-      const newDeliveryDate = new Date(targetDate);
-      newDeliveryDate.setDate(newDeliveryDate.getDate() + dayOffset);
+    setIsDuplicating(true);
+    try {
+      for (const order of weekOrders) {
+        const sourceDelivery = new Date(order.deliveryDate);
+        const dayOffset = Math.round((sourceDelivery.getTime() - sourceDate.getTime()) / (1000 * 60 * 60 * 24));
+        const newDeliveryDate = new Date(targetDate);
+        newDeliveryDate.setDate(newDeliveryDate.getDate() + dayOffset);
 
-      onAddOrder({
-        clientId: order.clientId,
-        items: order.items.map(oi => ({ itemId: oi.itemId, quantity: oi.quantity, price: oi.price })),
-        deliveryDate: newDeliveryDate.toISOString().split('T')[0],
-        status: 'pending',
-        notes: order.notes,
-        total: order.total,
-      });
+        await onAddOrder({
+          clientId: order.clientId,
+          items: order.items.map(oi => ({ itemId: oi.itemId, quantity: oi.quantity, price: oi.price })),
+          deliveryDate: newDeliveryDate.toISOString().split('T')[0],
+          status: 'pending',
+          notes: order.notes,
+          total: order.total,
+        });
+      }
+    } catch (error) {
+      console.error('Error duplicating week:', error);
+      alert('Failed to duplicate some orders. Please check and try again.');
+    } finally {
+      setIsDuplicating(false);
     }
   };
 
