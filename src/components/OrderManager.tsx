@@ -176,23 +176,35 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
     openModal(undefined, orderFormData);
   };
 
+  const formatLocalDate = (date: Date): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const parseLocalDate = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+
   const handleDuplicateWeek = async (sourceWeekStart: string, targetWeekStart: string) => {
-    const sourceDate = new Date(sourceWeekStart + 'T00:00:00');
-    const targetDate = new Date(targetWeekStart + 'T00:00:00');
+    const sourceDate = parseLocalDate(sourceWeekStart);
+    const targetDate = parseLocalDate(targetWeekStart);
     const weekOrders = orders.filter(o => {
-      const d = new Date(o.deliveryDate);
+      const d = parseLocalDate(o.deliveryDate);
       const ws = new Date(d);
       const day = ws.getDay();
       const diff = day === 0 ? -6 : 1 - day;
       ws.setDate(ws.getDate() + diff);
       ws.setHours(0, 0, 0, 0);
-      return ws.toISOString().split('T')[0] === sourceWeekStart && o.status !== 'merge';
+      return formatLocalDate(ws) === sourceWeekStart && o.status !== 'merge';
     });
 
     setIsDuplicating(true);
     try {
       for (const order of weekOrders) {
-        const sourceDelivery = new Date(order.deliveryDate);
+        const sourceDelivery = parseLocalDate(order.deliveryDate);
         const dayOffset = Math.round((sourceDelivery.getTime() - sourceDate.getTime()) / (1000 * 60 * 60 * 24));
         const newDeliveryDate = new Date(targetDate);
         newDeliveryDate.setDate(newDeliveryDate.getDate() + dayOffset);
@@ -200,7 +212,7 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
         await onAddOrder({
           clientId: order.clientId,
           items: order.items.map(oi => ({ itemId: oi.itemId, quantity: oi.quantity, price: oi.price })),
-          deliveryDate: newDeliveryDate.toISOString().split('T')[0],
+          deliveryDate: formatLocalDate(newDeliveryDate),
           status: 'pending',
           notes: order.notes,
           total: order.total,
