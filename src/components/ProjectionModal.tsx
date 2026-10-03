@@ -104,7 +104,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
 
         const lineCommission = lineAfterDiscount * (commissionPercent / 100);
 
-        const lineFoodCost = lineAfterDiscount * (config.foodCostPercent / 100) + li.quantity * mult * config.foodCostFixed;
+        const lineFoodCost = lineAfterDiscount * (config.foodCostPercent / 100);
 
         const lineNet = lineAfterDiscount - lineCommission - lineFoodCost;
 
@@ -123,10 +123,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
         };
       });
 
-      const sectionFoodCost = afterDiscount * (config.foodCostPercent / 100) + orderLineItems.reduce(
-        (sum, li) => sum + li.quantity * mult * config.foodCostFixed,
-        0
-      );
+      const sectionFoodCost = afterDiscount * (config.foodCostPercent / 100) + config.foodCostFixed;
 
       const sectionNet = afterDiscount - commissionTotal - sectionFoodCost;
 
@@ -329,7 +326,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Food Cost Fixed (per unit, Kč)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Food Cost Fixed (flat per section, Kč)</label>
                   <input
                     type="number"
                     value={config.foodCostFixed}
@@ -392,7 +389,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
               </div>
 
               <p className="text-xs text-gray-500">
-                Settings are saved in your browser and remembered next time. Food cost = (after-discount total × {config.foodCostPercent}%) + (total units × {config.foodCostFixed} Kč).
+                Settings are saved in your browser and remembered next time. Food cost = (after-discount total × {config.foodCostPercent}%) + {config.foodCostFixed} Kč flat per section.
               </p>
             </div>
           )}
