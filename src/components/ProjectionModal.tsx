@@ -49,6 +49,7 @@ interface RowData {
   commissionTotal: number;
   foodCost: number;
   netForSesamo: number;
+  margin: number;
 }
 
 function getTierPercent(tiers: { threshold: number; percent: number }[], value: number): number {
@@ -120,6 +121,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
           commissionTotal: lineCommission,
           foodCost: lineFoodCost,
           netForSesamo: lineNet,
+          margin: lineAfterDiscount > 0 ? (lineNet / lineAfterDiscount) * 100 : 0,
         };
       });
 
@@ -138,6 +140,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
         totalWithVat,
         foodCost: sectionFoodCost,
         netForSesamo: sectionNet,
+        margin: afterDiscount > 0 ? (sectionNet / afterDiscount) * 100 : 0,
         rows,
       };
     });
@@ -150,7 +153,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
     const headers = [
       'Item', 'Total Qty', 'Unit Price (no VAT, after discount)', 'Total (no VAT, after discount)',
       'Total (with VAT)', 'Discount %', 'Total Discount', 'Commission %', 'Commission Total',
-      'Food Cost', 'Net for Sesamo',
+      'Food Cost', 'Net for Sesamo', 'Margin %',
     ];
 
     const lines: string[] = [];
@@ -167,10 +170,10 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
         lines.push([
           row.name, formatInt(row.totalQty), formatNum(row.unitPriceNoVat), formatNum(row.totalNoVat),
           formatNum(row.totalWithVat), `${row.discountPercent}%`, formatNum(row.totalDiscount),
-          `${row.commissionPercent}%`, formatNum(row.commissionTotal), formatNum(row.foodCost), formatNum(row.netForSesamo),
+          `${row.commissionPercent}%`, formatNum(row.commissionTotal), formatNum(row.foodCost), formatNum(row.netForSesamo), `${row.margin.toFixed(1)}%`,
         ].join('\t'));
       }
-      lines.push(['SECTION TOTAL x' + section.multiplier, '', '', formatNum(section.afterDiscount), formatNum(section.totalWithVat), `${section.discountPercent}%`, formatNum(section.totalDiscount), `${section.commissionPercent}%`, formatNum(section.commissionTotal), formatNum(section.foodCost), formatNum(section.netForSesamo)].join('\t'));
+      lines.push(['SECTION TOTAL x' + section.multiplier, '', '', formatNum(section.afterDiscount), formatNum(section.totalWithVat), `${section.discountPercent}%`, formatNum(section.totalDiscount), `${section.commissionPercent}%`, formatNum(section.commissionTotal), formatNum(section.foodCost), formatNum(section.netForSesamo), `${section.margin.toFixed(1)}%`].join('\t'));
     }
 
     const tsv = lines.join('\n');
@@ -409,6 +412,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
                   <span>With VAT: <strong>{formatNum(section.totalWithVat)} Kč</strong></span>
                   <span>Food cost: <strong>{formatNum(section.foodCost)} Kč</strong></span>
                   <span className="text-orange-700">Net for Sesamo: <strong>{formatNum(section.netForSesamo)} Kč</strong></span>
+                  <span className="text-green-700">Margin: <strong>{section.margin.toFixed(1)}%</strong></span>
                 </div>
               </div>
 
@@ -427,6 +431,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
                       <th className="px-3 py-2 font-medium text-right">Commission Total</th>
                       <th className="px-3 py-2 font-medium text-right">Food Cost</th>
                       <th className="px-3 py-2 font-medium text-right">Net for Sesamo</th>
+                      <th className="px-3 py-2 font-medium text-right">Margin %</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -443,6 +448,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
                         <td className="px-3 py-2 text-right font-mono text-blue-600">−{formatNum(row.commissionTotal)}</td>
                         <td className="px-3 py-2 text-right font-mono text-gray-600">−{formatNum(row.foodCost)}</td>
                         <td className="px-3 py-2 text-right font-mono font-semibold text-orange-700">{formatNum(row.netForSesamo)}</td>
+                        <td className="px-3 py-2 text-right font-mono font-semibold text-green-700">{row.margin.toFixed(1)}%</td>
                       </tr>
                     ))}
                     {/* Totals row */}
@@ -458,6 +464,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
                       <td className="px-3 py-2 text-right font-mono text-blue-600">−{formatNum(section.commissionTotal)}</td>
                       <td className="px-3 py-2 text-right font-mono text-gray-600">−{formatNum(section.foodCost)}</td>
                       <td className="px-3 py-2 text-right font-mono text-orange-700">{formatNum(section.netForSesamo)}</td>
+                      <td className="px-3 py-2 text-right font-mono font-semibold text-green-700">{section.margin.toFixed(1)}%</td>
                     </tr>
                   </tbody>
                 </table>
