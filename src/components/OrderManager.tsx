@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { Order, OrderItem, Client, Item } from '../types';
-import { Plus, Pencil as Edit2, Trash2, ShoppingCart, Calendar, User, Package, Minus, Download, Copy, Grid3x3, LayoutList, CalendarDays } from 'lucide-react';
+import { Plus, Pencil as Edit2, Trash2, ShoppingCart, Calendar, User, Package, Minus, Download, Copy, Grid3x3, LayoutList, CalendarDays, Calculator } from 'lucide-react';
 import { generateOrderPDF } from '../utils/pdfGenerator';
 import { calculateDiscount } from '../utils/discountCalculator';
 import WeeklyView from './WeeklyView';
+import ProjectionModal from './ProjectionModal';
 
 type ViewMode = 'cards' | 'compact' | 'weekly';
 
@@ -41,6 +42,7 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
   const [statusFilter, setStatusFilter] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [projectionOrder, setProjectionOrder] = useState<Order | null>(null);
 
   const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm<OrderFormData>();
   const { fields, append, remove } = useFieldArray({
@@ -286,6 +288,13 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
             <Edit2 size={16} />
           </button>
           <button
+            onClick={() => setProjectionOrder(order)}
+            className="p-1 text-gray-400 hover:text-purple-600 transition-colors"
+            title="Show projections"
+          >
+            <Calculator size={16} />
+          </button>
+          <button
             onClick={() => onDeleteOrder(order.id)}
             className="p-1 text-gray-400 hover:text-red-600 transition-colors"
             title="Delete"
@@ -452,6 +461,13 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
                     title="Edit"
                   >
                     <Edit2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => setProjectionOrder(order)}
+                    className="p-1 text-gray-400 hover:text-purple-600 transition-colors"
+                    title="Show projections"
+                  >
+                    <Calculator size={16} />
                   </button>
                   <button
                     onClick={() => onDeleteOrder(order.id)}
@@ -701,6 +717,14 @@ export default function OrderManager({ orders, clients, items, onAddOrder, onUpd
             </form>
           </div>
         </div>
+      )}
+
+      {projectionOrder && (
+        <ProjectionModal
+          order={projectionOrder}
+          items={items}
+          onClose={() => setProjectionOrder(null)}
+        />
       )}
     </div>
   );
