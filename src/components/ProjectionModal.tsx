@@ -41,6 +41,7 @@ interface RowData {
   name: string;
   totalQty: number;
   unitPriceNoVat: number;
+  unitPriceWithVat: number;
   totalNoVat: number;
   totalWithVat: number;
   discountPercent: number;
@@ -67,20 +68,23 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
   const [showConfig, setShowConfig] = useState(false);
 
   const orderLineItems = useMemo(() => {
+    const vatDivisor = 1 + config.vatRate / 100;
     return order.items.map(oi => {
       const item = items.find(i => i.id === oi.itemId);
       return {
         name: item?.name || 'Unknown Item',
         quantity: oi.quantity,
-        price: oi.price,
+        priceWithVat: oi.price,
+        priceNoVat: oi.price / vatDivisor,
       };
     });
-  }, [order, items]);
+  }, [order, items, config.vatRate]);
 
   const sections = useMemo(() => {
+    const vatMultiplier = 1 + config.vatRate / 100;
     return config.multipliers.map(mult => {
       const sectionSubtotal = orderLineItems.reduce(
-        (sum, li) => sum + li.price * li.quantity * mult,
+        (sum, li) => sum + li.priceNoVat * li.quantity * mult,
         0
       );
 
@@ -91,16 +95,17 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
       const commissionPercent = getTierPercent(config.commissionTiers, afterDiscount);
       const commissionTotal = afterDiscount * (commissionPercent / 100);
 
-      const totalWithVat = afterDiscount * (1 + config.vatRate / 100);
+      const totalWithVat = afterDiscount * vatMultiplier;
 
       const rows: RowData[] = orderLineItems.map(li => {
-        const lineSubtotal = li.price * li.quantity * mult;
+        const lineSubtotal = li.priceNoVat * li.quantity * mult;
         const lineDiscount = lineSubtotal * (discountPercent / 100);
         const lineAfterDiscount = lineSubtotal - lineDiscount;
 
-        const unitPriceNoVat = li.price * (1 - discountPercent / 100);
+        const unitPriceNoVat = li.priceNoVat * (1 - discountPercent / 100);
+        const unitPriceWithVat = unitPriceNoVat * vatMultiplier;
         const totalNoVat = lineAfterDiscount;
-        const lineWithVat = lineAfterDiscount * (1 + config.vatRate / 100);
+        const lineWithVat = lineAfterDiscount * vatMultiplier;
         const lineDiscountAmount = lineDiscount;
 
         const lineCommission = lineAfterDiscount * (commissionPercent / 100);
@@ -113,6 +118,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
           name: li.name,
           totalQty: li.quantity * mult,
           unitPriceNoVat,
+          unitPriceWithVat,
           totalNoVat,
           totalWithVat: lineWithVat,
           discountPercent,
@@ -129,9 +135,12 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
 
       const sectionNet = afterDiscount - commissionTotal - sectionFoodCost;
 
+      const sectionSubtotalWithVat = sectionSubtotal * vatMultiplier;
+
       return {
         multiplier: mult,
         sectionSubtotal,
+        sectionSubtotalWithVat,
         discountPercent,
         totalDiscount,
         afterDiscount,
@@ -144,14 +153,14 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
         rows,
       };
     });
-  }, [orderLineItems, config]);
+  }, [orderLineItems, config.vatRate, config.multipliers, config.discountTiers, config.commissionTiers, config.foodCostPercent, config.foodCostFixed, config]);
 
   const formatNum = (n: number) => n.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const formatInt = (n: number) => n.toLocaleString('cs-CZ', { maximumFractionDigits: 0 });
 
   const handleExportTSV = () => {
     const headers = [
-      'Item', 'Total Qty', 'Unit Price (no VAT, after discount)', 'Total (no VAT, after discount)',
+      'Item', 'Total Qty', 'Unit Price (no VAT, after disc.)', 'Unit Price (with VAT, after disc.)', 'Total (no VAT, after disc.)',
       'Total (with VAT)', 'Discount %', 'Total Discount', 'Commission %', 'Commission Total',
       'Food Cost', 'Net for Sesamo', 'Margin %',
     ];
@@ -168,12 +177,12 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
       lines.push(`## Section x${section.multiplier} | Subtotal: ${formatNum(section.sectionSubtotal)} | Discount: ${section.discountPercent}% | Commission: ${section.commissionPercent}% | Net for Sesamo: ${formatNum(section.netForSesamo)}`);
       for (const row of section.rows) {
         lines.push([
-          row.name, formatInt(row.totalQty), formatNum(row.unitPriceNoVat), formatNum(row.totalNoVat),
+          row.name, formatInt(row.totalQty), formatNum(row.unitPriceNoVat), formatNum(row.unitPriceWithVat), formatNum(row.totalNoVat),
           formatNum(row.totalWithVat), `${row.discountPercent}%`, formatNum(row.totalDiscount),
           `${row.commissionPercent}%`, formatNum(row.commissionTotal), formatNum(row.foodCost), formatNum(row.netForSesamo), `${row.margin.toFixed(1)}%`,
         ].join('\t'));
       }
-      lines.push(['SECTION TOTAL x' + section.multiplier, '', '', formatNum(section.afterDiscount), formatNum(section.totalWithVat), `${section.discountPercent}%`, formatNum(section.totalDiscount), `${section.commissionPercent}%`, formatNum(section.commissionTotal), formatNum(section.foodCost), formatNum(section.netForSesamo), `${section.margin.toFixed(1)}%`].join('\t'));
+      lines.push(['SECTION TOTAL x' + section.multiplier, '', '', '', formatNum(section.afterDiscount), formatNum(section.totalWithVat), `${section.discountPercent}%`, formatNum(section.totalDiscount), `${section.commissionPercent}%`, formatNum(section.commissionTotal), formatNum(section.foodCost), formatNum(section.netForSesamo), `${section.margin.toFixed(1)}%`].join('\t'));
     }
 
     const tsv = lines.join('\n');
@@ -405,7 +414,8 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
                   Section × {section.multiplier}
                 </h4>
                 <div className="flex flex-wrap gap-4 mt-1 text-sm text-gray-600">
-                  <span>Subtotal: <strong>{formatNum(section.sectionSubtotal)} Kč</strong></span>
+                  <span>Subtotal (excl. VAT): <strong>{formatNum(section.sectionSubtotal)} Kč</strong></span>
+                  <span>Subtotal (incl. VAT): <strong>{formatNum(section.sectionSubtotalWithVat)} Kč</strong></span>
                   <span>Discount: <strong>{section.discountPercent}%</strong> (−{formatNum(section.totalDiscount)} Kč)</span>
                   <span>After discount: <strong>{formatNum(section.afterDiscount)} Kč</strong></span>
                   <span>Commission: <strong>{section.commissionPercent}%</strong> (−{formatNum(section.commissionTotal)} Kč)</span>
@@ -422,9 +432,10 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
                     <tr className="bg-gray-100 text-gray-700 text-left">
                       <th className="px-3 py-2 font-medium">Item</th>
                       <th className="px-3 py-2 font-medium text-right">Total Qty</th>
-                      <th className="px-3 py-2 font-medium text-right">Unit Price<br/>(no VAT, after disc.)</th>
-                      <th className="px-3 py-2 font-medium text-right">Total<br/>(no VAT, after disc.)</th>
-                      <th className="px-3 py-2 font-medium text-right">Total<br/>(with VAT)</th>
+                      <th className="px-3 py-2 font-medium text-right">Unit Price<br/>(excl. VAT, after disc.)</th>
+                      <th className="px-3 py-2 font-medium text-right">Unit Price<br/>(incl. VAT, after disc.)</th>
+                      <th className="px-3 py-2 font-medium text-right">Total<br/>(excl. VAT, after disc.)</th>
+                      <th className="px-3 py-2 font-medium text-right">Total<br/>(incl. VAT)</th>
                       <th className="px-3 py-2 font-medium text-right">Disc. %</th>
                       <th className="px-3 py-2 font-medium text-right">Total Discount</th>
                       <th className="px-3 py-2 font-medium text-right">Comm. %</th>
@@ -440,6 +451,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
                         <td className="px-3 py-2 text-gray-900">{row.name}</td>
                         <td className="px-3 py-2 text-right font-mono">{formatInt(row.totalQty)}</td>
                         <td className="px-3 py-2 text-right font-mono">{formatNum(row.unitPriceNoVat)}</td>
+                        <td className="px-3 py-2 text-right font-mono">{formatNum(row.unitPriceWithVat)}</td>
                         <td className="px-3 py-2 text-right font-mono">{formatNum(row.totalNoVat)}</td>
                         <td className="px-3 py-2 text-right font-mono">{formatNum(row.totalWithVat)}</td>
                         <td className="px-3 py-2 text-right">{row.discountPercent}%</td>
@@ -454,6 +466,7 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
                     {/* Totals row */}
                     <tr className="bg-gray-50 font-semibold">
                       <td className="px-3 py-2 text-gray-900">SECTION TOTAL × {section.multiplier}</td>
+                      <td className="px-3 py-2"></td>
                       <td className="px-3 py-2"></td>
                       <td className="px-3 py-2"></td>
                       <td className="px-3 py-2 text-right font-mono">{formatNum(section.afterDiscount)}</td>
