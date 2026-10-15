@@ -157,6 +157,8 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
 
   const formatNum = (n: number) => n.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const formatInt = (n: number) => n.toLocaleString('cs-CZ', { maximumFractionDigits: 0 });
+  const tsvNum = (n: number) => n.toFixed(2);
+  const tsvInt = (n: number) => Math.round(n).toString();
 
   const handleExportTSV = () => {
     const headers = [
@@ -174,15 +176,15 @@ export default function ProjectionModal({ order, items, onClose }: ProjectionMod
 
     for (const section of sections) {
       lines.push('');
-      lines.push(`## Section x${section.multiplier} | Subtotal: ${formatNum(section.sectionSubtotal)} | Discount: ${section.discountPercent}% | Commission: ${section.commissionPercent}% | Net for Sesamo: ${formatNum(section.netForSesamo)}`);
+      lines.push(`## Section x${section.multiplier} | Subtotal: ${tsvNum(section.sectionSubtotal)} | Discount: ${section.discountPercent}% | Commission: ${section.commissionPercent}% | Net for Sesamo: ${tsvNum(section.netForSesamo)}`);
       for (const row of section.rows) {
         lines.push([
-          row.name, formatInt(row.totalQty), formatNum(row.unitPriceNoVat), formatNum(row.unitPriceWithVat), formatNum(row.totalNoVat),
-          formatNum(row.totalWithVat), `${row.discountPercent}%`, formatNum(row.totalDiscount),
-          `${row.commissionPercent}%`, formatNum(row.commissionTotal), formatNum(row.foodCost), formatNum(row.netForSesamo), `${row.margin.toFixed(1)}%`,
+          row.name, tsvInt(row.totalQty), tsvNum(row.unitPriceNoVat), tsvNum(row.unitPriceWithVat), tsvNum(row.totalNoVat),
+          tsvNum(row.totalWithVat), `${row.discountPercent}%`, tsvNum(row.totalDiscount),
+          `${row.commissionPercent}%`, tsvNum(row.commissionTotal), tsvNum(row.foodCost), tsvNum(row.netForSesamo), `${row.margin.toFixed(1)}%`,
         ].join('\t'));
       }
-      lines.push(['SECTION TOTAL x' + section.multiplier, '', '', '', formatNum(section.afterDiscount), formatNum(section.totalWithVat), `${section.discountPercent}%`, formatNum(section.totalDiscount), `${section.commissionPercent}%`, formatNum(section.commissionTotal), formatNum(section.foodCost), formatNum(section.netForSesamo), `${section.margin.toFixed(1)}%`].join('\t'));
+      lines.push(['SECTION TOTAL x' + section.multiplier, '', '', '', tsvNum(section.afterDiscount), tsvNum(section.totalWithVat), `${section.discountPercent}%`, tsvNum(section.totalDiscount), `${section.commissionPercent}%`, tsvNum(section.commissionTotal), tsvNum(section.foodCost), tsvNum(section.netForSesamo), `${section.margin.toFixed(1)}%`].join('\t'));
     }
 
     const tsv = lines.join('\n');
