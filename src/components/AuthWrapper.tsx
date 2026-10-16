@@ -60,7 +60,7 @@ export function AuthWrapper({ children, showHeader = true }: AuthWrapperProps) {
             supabaseClient={supabase}
             appearance={{ theme: ThemeSupa }}
             providers={[]}
-            redirectTo={window.location.origin}
+            redirectTo={'https://b2b.sesamobrno.cz/'}
           />
         </div>
       </div>
